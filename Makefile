@@ -1,6 +1,11 @@
 .PHONY: setup
-setup:
-	pip install keras kapre
+setup: kapre
+	pip install h5py keras tensorflow
+
+.PHONY: kapre
+kapre:
+	-cd ..; git checkout https://github.com/evhub/kapre; cd transfer-learning-live-song-id
+	pip install -e ../kapre
 
 .PHONY: clean
 clean:
