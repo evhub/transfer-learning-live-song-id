@@ -20,13 +20,13 @@ K.set_image_data_format("channels_last")
 
 SR = 22050
 DELTA = 8
-SAMPLE_STRIDE = 49
+SAMPLE_STRIDE = 98
 
 BASE_MODEL_FILE = "transfer_learning_music_model.hdf5"
 SAMPLE_WIDTH = int(5.12 * 16000)
 NUM_FEATURES = 160
 
-# Helper Models
+# Base Models
 def build_feature_extractor():
     """Builds the transfer_learning_music feature extractor."""
     base_model = load_model(
@@ -66,8 +66,8 @@ def build_delta(num_samples):
 
     return Sequential([
         Reshape(
-            input_shape=(NUM_FEATURES, num_samples),
-            target_shape=(NUM_FEATURES, num_samples, 1),
+            input_shape=(num_samples, NUM_FEATURES),
+            target_shape=(num_samples, NUM_FEATURES, 1),
         ),
         Conv2D(
             filters=num_filters,
@@ -78,7 +78,7 @@ def build_delta(num_samples):
         ),
     ])
 
-# Preprocessing
+# Utilities
 def get_num_samples(audio_len):
     """Get the number of samples to take."""
     return (audio_len - SAMPLE_WIDTH)//SAMPLE_STRIDE
@@ -88,27 +88,44 @@ def get_samples(audio_arr):
     audio_len, = audio_arr.shape
     num_samples = get_num_samples(audio_len)
 
-    samples = np.zeros((num_samples, SAMPLE_WIDTH))
-    for i in range(0, num_samples, SAMPLE_STRIDE):
-        samples[i] = audio_arr[i:i+SAMPLE_WIDTH+1]
+    samples = np.zeros((num_samples, 1, SAMPLE_WIDTH))
+    for i in range(0, num_samples):
+        j = i * SAMPLE_STRIDE
+        samples[i,0] = audio_arr[j:j+SAMPLE_WIDTH]
     return samples
 
+def binary_threshold(delta_arr, threshold=0):
+    """Cast the given array to binary."""
+    return np.where(delta_arr >= threshold, 1, 0)
+
 # Main Model
-def build_model(audio_len=6*SR):
+def build_models(audio_len=6*SR):
     """Build the combined feature extraction and delta model."""
     num_samples = get_num_samples(audio_len)
+    return build_feature_extractor(), build_delta(num_samples)
 
-    input_layer = Input(shape=(1, SAMPLE_WIDTH))
+def run_models(audio_arr, feat_extractor, delta_model):
+    """Run the given models on the given audio."""
+    samples = get_samples(audio_arr)
+    num_samples = samples.shape[0]
 
-    feat_model = build_feature_extractor()
-    print(input_layer, "->", feat_model.input)
-    feat_layer = feat_model(input_layer)
+    features = feat_extractor.predict(samples, batch_size=num_samples)
+    assert features.shape == (num_samples, NUM_FEATURES), (features.shape, (num_samples, NUM_FEATURES))
+    features = features.reshape((1, num_samples, NUM_FEATURES))
 
-    delta_model = build_delta(num_samples)
-    print(feat_model.output, "->", delta_model.input)
-    delta_layer = delta_model(feat_layer)
+    delta_arr = delta_model.predict(features, batch_size=1)
+    binary_arr = binary_threshold(delta_arr)
+    return binary_arr
 
-    return Model(inputs=input_layer, outputs=delta_layer)
-
+# Testing
 if __name__ == "__main__":
-    build_model().summary()
+    audio_len = 6*SR
+    test_audio = np.random.random(audio_len)
+
+    models = build_models(audio_len)
+    for model in models:
+        model.summary()
+
+    hashprint = run_models(test_audio, *models)
+    print(hashprint.shape)
+    print(hashprint)
