@@ -98,6 +98,20 @@ def binary_threshold(delta_arr, threshold=0):
     """Cast the given array to binary."""
     return np.where(delta_arr >= threshold, 1, 0)
 
+def predict_all(samples, feat_extractor, max_batch_size=128):
+    """Split the samples into smaller batches to save memory."""
+    num_samples = samples.shape[0]
+
+    batch_indices = list(range(max_batch_size, num_samples, max_batch_size))
+    batches = np.split(samples, batch_indices)
+
+    features = np.zeros((num_samples, NUM_FEATURES))
+    for i, batch in enumerate(batches):
+        batch_size = batch.shape[0]
+        j = i * max_batch_size
+        features[j:j+batch_size] = feat_extractor.predict(batch, batch_size=batch_size)
+    return features
+
 # Main Model
 def build_models(audio_len=6*SR):
     """Build the combined feature extraction and delta model."""
@@ -109,7 +123,7 @@ def run_models(audio_arr, feat_extractor, delta_model):
     samples = get_samples(audio_arr)
     num_samples = samples.shape[0]
 
-    features = feat_extractor.predict(samples, batch_size=num_samples)
+    features = predict_all(samples, feat_extractor)
     assert features.shape == (num_samples, NUM_FEATURES), (features.shape, (num_samples, NUM_FEATURES))
     features = features.reshape((1, num_samples, NUM_FEATURES))
 
