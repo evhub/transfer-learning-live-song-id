@@ -32,7 +32,7 @@ K.set_image_data_format("channels_last")
 
 SR = 22050
 DELTA = 8
-SAMPLE_STRIDE = 2048
+SAMPLE_STRIDE = 2048  # 1024
 
 BASE_MODEL_FILE = "transfer_learning_music_model.hdf5"
 SAMPLE_WIDTH = int(5.12 * 16000)
@@ -93,7 +93,11 @@ def build_delta(num_samples):
 # Utilities
 def get_num_samples(audio_len):
     """Get the number of samples to take."""
-    return int(math.ceil((audio_len - SAMPLE_WIDTH)/SAMPLE_STRIDE))
+    remaining_len = audio_len - SAMPLE_WIDTH
+    if remaining_len < 0:
+        return 1
+    else:
+        return int(math.ceil(remaining_len/SAMPLE_STRIDE))
 
 def get_samples(audio_arr):
     """Sample the given audio."""
@@ -144,8 +148,8 @@ def run_models(audio_arr, feat_extractor, delta_model):
     delta_arr = delta_model.predict(features, batch_size=1)
     binary_arr = binary_threshold(delta_arr)
 
-    out_arr = np.squeeze(binary_arr)
-    assert out_arr.shape[1] == NUM_FEATURES, out_arr.shape
+    out_arr = np.squeeze(binary_arr).T
+    assert out_arr.shape[0] == NUM_FEATURES, out_arr.shape
     return out_arr
 
 def process(audio_arr, debug=False):
@@ -187,7 +191,7 @@ def read_db():
 # Calculating MRR
 if __name__ == "__main__":
     print("Querying database...")
-    refs, queries, groundTruth = song_db.get_data_for_artist("taylorswift")
+    refs, queries, groundTruth = song_db.get_data_for_artist("taylorswift")  # song_db.get_all_data()
     try:
         proc_refs, proc_queries = read_db()
     except IOError:

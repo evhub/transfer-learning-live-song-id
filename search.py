@@ -25,16 +25,16 @@ def compare(queryFeatures, refFeatures):
 
 def search(query, refs):
     """
-    query: np.array() of shape (64,k)
+    query: np.array() of shape (160,k)
     refs: an array containing an array of pitch-shifted features from each artist;
-          each pitch-shifted feature is a form of np.array() of shape (64,n) where
+          each pitch-shifted feature is a form of np.array() of shape (160,n) where
           n resembles the length of the song
 
     output: an array containing sorted by the score.
     """
     # Initialization
     output = []
-    
+
     for refIdx, ref in enumerate(refs):
         distances = []
 
@@ -42,7 +42,7 @@ def search(query, refs):
         for pitch, refPitch in enumerate(ref):
             distance, _ = compare(query, refPitch)
             distances.append((pitch, distance))
-        
+
         # Obtain the minimum distance from multiple versions
         bestRefPitch, bestRefDistance = min(distances, key=lambda x: x[1])
 
@@ -50,7 +50,7 @@ def search(query, refs):
         output.append((refIdx, bestRefDistance, bestRefPitch))
 
     # Sort an output array based on distance
-    return sorted(output, key=lambda x: x[1]) 
+    return sorted(output, key=lambda x: x[1])
 
 def calculateMRR(queries, refs, groundTruth):
     """
@@ -60,7 +60,7 @@ def calculateMRR(queries, refs, groundTruth):
     """
     MRR = 0
     for id_query, query in enumerate(queries):
-        print("==> Searching query {:}".format(id_query))    
+        print("==> Searching query {:}".format(id_query))
         t_start = time.time()
         searchResult = search(query, refs)
         rank = 0
