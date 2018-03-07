@@ -4,7 +4,7 @@ setup: kapre
 
 .PHONY: kapre
 kapre:
-	-cd ..; git checkout https://github.com/evhub/kapre; cd transfer-learning-live-song-id
+	-cd ..; git clone https://github.com/evhub/kapre; cd transfer-learning-live-song-id
 	pip install -e ../kapre
 
 .PHONY: clean
