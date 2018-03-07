@@ -18,7 +18,10 @@ from keras.layers import (
 )
 from keras.engine.topology import Input
 
-from song_db import get_data_for_artist
+try:
+    from song_db import get_data_for_artist
+except SyntaxError:
+    from song_db2 import get_data_for_artist
 
 from search import calculateMRR
 
