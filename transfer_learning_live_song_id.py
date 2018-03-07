@@ -141,18 +141,21 @@ def run_models(audio_arr, feat_extractor, delta_model):
     assert out_arr.shape[1] == NUM_FEATURES, out_arr.shape
     return out_arr
 
-def process(audio_arr):
+def process(audio_arr, debug=False):
     """Build and run models on the given audio."""
     audio_len, = audio_arr.shape
+    if debug:
+        print("\tProcessing audio array of length %d..." % audio_len)
     models = build_models(audio_len)
     return run_models(audio_arr, *models)
 
-def process_all(audio_arrs):
+def process_all(audio_arrs, debug=False):
     """Process all the given audio arrays."""
-    return [process(audio) for audio in audio_arrs]
+    return [process(audio, debug) for audio in audio_arrs]
 
 # Testing
 if __name__ == "__main__":
+    print("Testing models...")
     audio_len = 6*SR
     test_audio = np.random.random(audio_len)
 
@@ -166,8 +169,12 @@ if __name__ == "__main__":
 
 # Calculating MRR
 if __name__ == "__main__":
+    print("Querying database...")
     refs, queries, groundTruth = get_data_for_artist("taylorswift")
-    proc_refs = process_all(refs)
-    proc_queries = process_all(queries)
+    print("Processing refs...")
+    proc_refs = process_all(refs, debug=True)
+    print("Processing queries...")
+    proc_queries = process_all(queries, debug=True)
+    print("Calculating MRR...")
     MMR = calculateMRR(proc_refs, proc_queries, groundTruth)
     print("MMR =", MMR)
