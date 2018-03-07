@@ -1,7 +1,7 @@
 # Imports
 import sys
 import os.path
-sys.path.append(os.path.dirname(__file__))
+import math
 
 import numpy as np
 import kapre
@@ -19,10 +19,11 @@ from keras.layers import (
 from keras.engine.topology import Input
 
 try:
-    from song_db import get_data_for_artist
+    import song_db
 except SyntaxError:
-    from song_db2 import get_data_for_artist
+    import song_db2 as song_db
 
+sys.path.append(os.path.dirname(__file__))
 from search import calculateMRR
 
 # Constants
@@ -31,11 +32,15 @@ K.set_image_data_format("channels_last")
 
 SR = 22050
 DELTA = 8
-SAMPLE_STRIDE = 98
+SAMPLE_STRIDE = 2048
 
 BASE_MODEL_FILE = "transfer_learning_music_model.hdf5"
 SAMPLE_WIDTH = int(5.12 * 16000)
 NUM_FEATURES = 160
+
+DB_DIR = os.path.join(os.path.dirname(__file__), "db")
+PROC_REFS_FILE = os.path.join(DB_DIR, "proc_refs.npy")
+PROC_QUERIES_FILE = os.path.join(DB_DIR, "proc_queries.npy")
 
 # Base Models
 def build_feature_extractor():
@@ -88,7 +93,7 @@ def build_delta(num_samples):
 # Utilities
 def get_num_samples(audio_len):
     """Get the number of samples to take."""
-    return (audio_len - SAMPLE_WIDTH)//SAMPLE_STRIDE
+    return int(math.ceil((audio_len - SAMPLE_WIDTH)/SAMPLE_STRIDE))
 
 def get_samples(audio_arr):
     """Sample the given audio."""
@@ -98,7 +103,9 @@ def get_samples(audio_arr):
     samples = np.zeros((num_samples, 1, SAMPLE_WIDTH))
     for i in range(0, num_samples):
         j = i * SAMPLE_STRIDE
-        samples[i,0] = audio_arr[j:j+SAMPLE_WIDTH]
+        sample = np.zeros(SAMPLE_WIDTH)
+        sample[:] = audio_arr[j:j+SAMPLE_WIDTH]
+        samples[i,0] = sample
     return samples
 
 def binary_threshold(delta_arr, threshold=0):
@@ -145,7 +152,7 @@ def process(audio_arr, debug=False):
     """Build and run models on the given audio."""
     audio_len, = audio_arr.shape
     if debug:
-        print("\tProcessing audio array of length %d..." % audio_len)
+        print("\tProcessing audio array of length %d (%d samples)..." % (audio_len, get_num_samples(audio_len)))
     models = build_models(audio_len)
     return run_models(audio_arr, *models)
 
@@ -167,14 +174,31 @@ if __name__ == "__main__":
     print(bin_repr.shape)
     print(bin_repr)
 
+# Database management
+def write_db(proc_refs, proc_queries):
+    """Writes processed refs and queries to the database."""
+    np.save(PROC_REFS_FILE, proc_refs)
+    np.save(PROC_QUERIES_FILE, proc_queries)
+
+def read_db():
+    """Reads processed refs and queries from the database."""
+    return np.load(PROC_REFS_FILE), np.load(PROC_QUERIES_FILE)
+
 # Calculating MRR
 if __name__ == "__main__":
     print("Querying database...")
-    refs, queries, groundTruth = get_data_for_artist("taylorswift")
-    print("Processing refs...")
-    proc_refs = process_all(refs, debug=True)
-    print("Processing queries...")
-    proc_queries = process_all(queries, debug=True)
+    refs, queries, groundTruth = song_db.get_data_for_artist("taylorswift")
+    try:
+        proc_refs, proc_queries = read_db()
+    except IOError:
+        print("Processing refs...")
+        proc_refs = process_all(refs, debug=True)
+        print("Processing queries...")
+        proc_queries = process_all(queries, debug=True)
+        print("Writing to database...")
+        write_db(proc_refs, proc_queries)
+    else:
+        print("Using existing database...")
     print("Calculating MRR...")
     MMR = calculateMRR(proc_refs, proc_queries, groundTruth)
     print("MMR =", MMR)
