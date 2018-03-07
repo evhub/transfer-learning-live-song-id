@@ -1,4 +1,8 @@
 # Imports
+import sys
+import os.path
+sys.path.append(os.path.dirname(__file__))
+
 import numpy as np
 import kapre
 from keras.models import (
@@ -13,6 +17,10 @@ from keras.layers import (
     Reshape,
 )
 from keras.engine.topology import Input
+
+from song_db import get_data_for_artist
+
+from search import calculateMRR
 
 # Constants
 from keras import backend as K
@@ -130,6 +138,16 @@ def run_models(audio_arr, feat_extractor, delta_model):
     assert out_arr.shape[1] == NUM_FEATURES, out_arr.shape
     return out_arr
 
+def process(audio_arr):
+    """Build and run models on the given audio."""
+    audio_len, = audio_arr.shape
+    models = build_models(audio_len)
+    return run_models(audio_arr, *models)
+
+def process_all(audio_arrs):
+    """Process all the given audio arrays."""
+    return [process(audio) for audio in audio_arrs]
+
 # Testing
 if __name__ == "__main__":
     audio_len = 6*SR
@@ -139,6 +157,14 @@ if __name__ == "__main__":
     for model in models:
         model.summary()
 
-    hashprint = run_models(test_audio, *models)
-    print(hashprint.shape)
-    print(hashprint)
+    bin_repr = run_models(test_audio, *models)
+    print(bin_repr.shape)
+    print(bin_repr)
+
+# Calculating MRR
+if __name__ == "__main__":
+    refs, queries, groundTruth = get_data_for_artist("taylorswift")
+    proc_refs = process_all(refs)
+    proc_queries = process_all(queries)
+    MMR = calculateMRR(proc_refs, proc_queries, groundTruth)
+    print("MMR =", MMR)
