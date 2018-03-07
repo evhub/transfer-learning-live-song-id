@@ -93,23 +93,23 @@ def build_delta(num_samples):
 # Utilities
 def get_num_samples(audio_len):
     """Get the number of samples to take."""
-    remaining_len = audio_len - SAMPLE_WIDTH
-    if remaining_len < 0:
-        return 1
-    else:
-        return int(math.ceil(remaining_len/SAMPLE_STRIDE))
+    remaining_len = audio_len - SAMPLE_WIDTH + 1
+    if remaining_len <= 0:
+        return None
+    return int(math.ceil(remaining_len/SAMPLE_STRIDE))
 
 def get_samples(audio_arr):
     """Sample the given audio."""
     audio_len, = audio_arr.shape
     num_samples = get_num_samples(audio_len)
+    assert num_samples, num_samples
 
     samples = np.zeros((num_samples, 1, SAMPLE_WIDTH))
     for i in range(0, num_samples):
         j = i * SAMPLE_STRIDE
-        sample = np.zeros(SAMPLE_WIDTH)
-        sample[:] = audio_arr[j:j+SAMPLE_WIDTH]
-        samples[i,0] = sample
+        sample = audio_arr[j:j+SAMPLE_WIDTH]
+        n, = sample.shape
+        samples[i,0,:n] = sample
     return samples
 
 def binary_threshold(delta_arr, threshold=0):
@@ -134,6 +134,7 @@ def predict_all(samples, feat_extractor, max_batch_size=128):
 def build_models(audio_len):
     """Build the combined feature extraction and delta model."""
     num_samples = get_num_samples(audio_len)
+    assert num_samples, num_samples
     return build_feature_extractor(), build_delta(num_samples)
 
 def run_models(audio_arr, feat_extractor, delta_model):
@@ -155,8 +156,9 @@ def run_models(audio_arr, feat_extractor, delta_model):
 def process(audio_arr, debug=False):
     """Build and run models on the given audio."""
     audio_len, = audio_arr.shape
+    num_samples = get_num_samples(audio_len)
     if debug:
-        print("\tProcessing audio array of length %d (%d samples)..." % (audio_len, get_num_samples(audio_len)))
+        print("\tProcessing audio array of length %r (%r samples)..." % (audio_len, num_samples))
     models = build_models(audio_len)
     return run_models(audio_arr, *models)
 
@@ -167,14 +169,9 @@ def process_all(audio_arrs, debug=False):
 # Testing
 if __name__ == "__main__":
     print("Testing models...")
-    audio_len = 6*SR
+    audio_len = SAMPLE_WIDTH
     test_audio = np.random.random(audio_len)
-
-    models = build_models(audio_len)
-    for model in models:
-        model.summary()
-
-    bin_repr = run_models(test_audio, *models)
+    bin_repr = process(test_audio, debug=True)
     print(bin_repr.shape)
     print(bin_repr)
 
@@ -188,10 +185,25 @@ def read_db():
     """Reads processed refs and queries from the database."""
     return np.load(PROC_REFS_FILE), np.load(PROC_QUERIES_FILE)
 
+def remove_short_queries(queries, groundTruth):
+    """Removes queries that are too short from queries and groundTruth."""
+    assert len(queries) == len(groundTruth), (len(queries), len(groundTruth))
+    filt_queries = []
+    filt_groundTruth = []
+    for query, truth in zip(queries, groundTruth):
+        audio_len, = query.shape
+        num_samples = get_num_samples(audio_len)
+        if num_samples is not None:
+            filt_queries.append(query)
+            filt_groundTruth.append(truth)
+    assert len(filt_queries) == len(filt_groundTruth), (len(filt_queries), len(filt_groundTruth))
+    return filt_queries, np.asarray(filt_groundTruth)
+
 # Calculating MRR
 if __name__ == "__main__":
     print("Querying database...")
     refs, queries, groundTruth = song_db.get_data_for_artist("taylorswift")  # song_db.get_all_data()
+    queries, groundTruth = remove_short_queries(queries, groundTruth)
     try:
         proc_refs, proc_queries = read_db()
     except IOError:
