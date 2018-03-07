@@ -50,16 +50,12 @@ def build_feature_extractor():
 def build_delta(num_samples):
     """Builds the delta convolution model."""
     delta_width = DELTA + 1
-    num_filters = num_samples - delta_width
 
     delta_vec = np.zeros(delta_width)
     delta_vec[0] = 1
     delta_vec[-1] = -1
 
-    delta_ker = np.zeros((delta_width, 1, 1, num_filters))
-    for i in range(num_filters):
-        delta_ker[:,0,0,i] = delta_vec
-
+    delta_ker = delta_vec.reshape((delta_width, 1, 1, 1))
     def delta_ker_init(shape, dtype=None):
         assert delta_ker.shape == shape, (delta_ker.shape, shape)
         return delta_ker
@@ -70,7 +66,7 @@ def build_delta(num_samples):
             target_shape=(num_samples, NUM_FEATURES, 1),
         ),
         Conv2D(
-            filters=num_filters,
+            filters=1,
             kernel_size=(delta_width, 1),
             kernel_initializer=delta_ker_init,
             use_bias=False,
@@ -113,7 +109,7 @@ def predict_all(samples, feat_extractor, max_batch_size=128):
     return features
 
 # Main Model
-def build_models(audio_len=6*SR):
+def build_models(audio_len):
     """Build the combined feature extraction and delta model."""
     num_samples = get_num_samples(audio_len)
     return build_feature_extractor(), build_delta(num_samples)
@@ -129,7 +125,10 @@ def run_models(audio_arr, feat_extractor, delta_model):
 
     delta_arr = delta_model.predict(features, batch_size=1)
     binary_arr = binary_threshold(delta_arr)
-    return binary_arr
+
+    out_arr = np.squeeze(binary_arr)
+    assert out_arr.shape[1] == NUM_FEATURES, out_arr.shape
+    return out_arr
 
 # Testing
 if __name__ == "__main__":
