@@ -32,7 +32,7 @@ K.set_image_data_format("channels_last")
 
 SR = 22050
 DELTA = 8
-SAMPLE_STRIDE = 2048  # 1024
+SAMPLE_STRIDE = 1024
 
 BASE_MODEL_FILE = "transfer_learning_music_model.hdf5"
 SAMPLE_WIDTH = int(5.12 * 16000)
@@ -204,7 +204,7 @@ def remove_short_queries(queries, groundTruth):
 # Calculating MRR
 if __name__ == "__main__":
     print("Querying database...")
-    refs, queries, groundTruth = song_db.get_data_for_artist("taylorswift")  # song_db.get_all_data()
+    refs, queries, groundTruth = song_db.get_data_for_artist("taylorswift")
     queries, groundTruth = remove_short_queries(queries, groundTruth)
     try:
         proc_refs, proc_queries = read_db()
