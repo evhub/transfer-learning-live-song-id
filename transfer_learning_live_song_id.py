@@ -201,7 +201,7 @@ def write_db(proc_refs, proc_queries):
     for i, ref in enumerate(proc_refs):
         ref_path = get_ref_path(i)
         np.save(ref_path, ref)
-    for j, query in enumerate(proc_queries):
+    for i, query in enumerate(proc_queries):
         query_path = get_query_path(i)
         np.save(query_path, query)
 
