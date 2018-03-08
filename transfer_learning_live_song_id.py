@@ -39,8 +39,8 @@ SAMPLE_WIDTH = int(5.12 * 16000)
 NUM_FEATURES = 160
 
 DB_DIR = os.path.join(os.path.dirname(__file__), "db")
-PROC_REFS_FILE = os.path.join(DB_DIR, "proc_refs.npy")
-PROC_QUERIES_FILE = os.path.join(DB_DIR, "proc_queries.npy")
+REFS_DIR = os.path.join(DB_DIR, "refs")
+QUERIES_DIR = os.path.join(DB_DIR, "queries")
 
 # Base Models
 def build_feature_extractor():
@@ -116,17 +116,20 @@ def binary_threshold(delta_arr, threshold=0):
     """Cast the given array to binary."""
     return np.where(delta_arr >= threshold, 1, 0)
 
-def predict_all(samples, feat_extractor, max_batch_size=128):
+def predict_all(samples, feat_extractor, ideal_batch_size=128, max_batch_size=192):
     """Split the samples into smaller batches to save memory."""
     num_samples = samples.shape[0]
 
-    batch_indices = list(range(max_batch_size, num_samples, max_batch_size))
-    batches = np.split(samples, batch_indices)
+    if num_samples <= max_batch_size:
+        batches = [samples]
+    else:
+        batch_indices = list(range(ideal_batch_size, num_samples, ideal_batch_size))
+        batches = np.split(samples, batch_indices)
 
     features = np.zeros((num_samples, NUM_FEATURES))
     for i, batch in enumerate(batches):
         batch_size = batch.shape[0]
-        j = i * max_batch_size
+        j = i * ideal_batch_size
         features[j:j+batch_size] = feat_extractor.predict(batch, batch_size=batch_size)
     return features
 
@@ -176,16 +179,41 @@ if __name__ == "__main__":
     print(bin_repr)
 
 # Database management
+def make_db():
+    """Create all the db directories if they need to be made."""
+    made_dir = False
+    for dirpath in [DB_DIR, REFS_DIR, QUERIES_DIR]:
+        if not os.path.exists(dirpath):
+            os.mkdir(dirpath)
+            made_dir = True
+    return made_dir
+
+def get_ref_path(index):
+    """Get the path to the processed reference of the given index."""
+    return os.path.join(REFS_DIR, "{}.npy".format(index))
+
+def get_query_path(index):
+    """Get the path to the processed query of the given index."""
+    return os.path.join(QUERIES_DIR, "{}.npy".format(index))
+
 def write_db(proc_refs, proc_queries):
     """Writes processed refs and queries to the database."""
-    if not os.path.exists(DB_DIR):
-        os.mkdir(DB_DIR)
-    np.save(PROC_REFS_FILE, proc_refs)
-    np.save(PROC_QUERIES_FILE, proc_queries)
+    for i, ref in enumerate(proc_refs):
+        ref_path = get_ref_path(i)
+        np.save(ref_path, ref)
+    for j, query in enumerate(proc_queries):
+        query_path = get_query_path(i)
+        np.save(query_path, query)
 
 def read_db():
     """Reads processed refs and queries from the database."""
-    return np.load(PROC_REFS_FILE), np.load(PROC_QUERIES_FILE)
+    refs = []
+    for ref_path in sorted(os.listdir(REFS_DIR)):
+        refs.append(np.load(ref_path))
+    queries = []
+    for query_path in sorted(os.listdir(QUERIES_DIR)):
+        queries.append(np.load(query_path))
+    return refs, queries
 
 def remove_short_queries(queries, groundTruth):
     """Removes queries that are too short from queries and groundTruth."""
@@ -206,9 +234,7 @@ if __name__ == "__main__":
     print("Querying database...")
     refs, queries, groundTruth = song_db.get_data_for_artist("taylorswift")
     queries, groundTruth = remove_short_queries(queries, groundTruth)
-    try:
-        proc_refs, proc_queries = read_db()
-    except IOError:
+    if make_db():
         print("Processing refs...")
         proc_refs = process_all(refs, debug=True)
         print("Processing queries...")
@@ -217,6 +243,7 @@ if __name__ == "__main__":
         write_db(proc_refs, proc_queries)
     else:
         print("Using existing database...")
+        proc_refs, proc_queries = read_db()
     print("Calculating MRR...")
     MMR = calculateMRR(proc_refs, proc_queries, groundTruth)
     print("MMR =", MMR)
