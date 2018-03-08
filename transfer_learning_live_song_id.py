@@ -1,6 +1,6 @@
 # Imports
 import sys
-import os.path
+import os
 import math
 
 import numpy as np
@@ -178,6 +178,8 @@ if __name__ == "__main__":
 # Database management
 def write_db(proc_refs, proc_queries):
     """Writes processed refs and queries to the database."""
+    if not os.path.exists(DB_DIR):
+        os.mkdir(DB_DIR)
     np.save(PROC_REFS_FILE, proc_refs)
     np.save(PROC_QUERIES_FILE, proc_queries)
 
