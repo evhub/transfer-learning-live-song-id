@@ -96,7 +96,7 @@ def get_num_samples(audio_len):
     remaining_len = audio_len - SAMPLE_WIDTH + 1
     if remaining_len <= 0:
         return None
-    return int(math.ceil(remaining_len/SAMPLE_STRIDE))
+    return audio_len//SAMPLE_STRIDE
 
 def get_samples(audio_arr):
     """Sample the given audio."""
