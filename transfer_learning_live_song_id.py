@@ -63,6 +63,8 @@ def build_feature_extractor():
 
     return Model(inputs=base_model.input, outputs=feat_all)
 
+FEAT_EXTRACTOR = build_feature_extractor()
+
 def build_delta(num_samples):
     """Builds the delta convolution model."""
     delta_width = DELTA + 1
@@ -138,7 +140,7 @@ def build_models(audio_len):
     """Build the combined feature extraction and delta model."""
     num_samples = get_num_samples(audio_len)
     assert num_samples, num_samples
-    return build_feature_extractor(), build_delta(num_samples)
+    return FEAT_EXTRACTOR, build_delta(num_samples)
 
 def run_models(audio_arr, feat_extractor, delta_model):
     """Run the given models on the given audio."""
