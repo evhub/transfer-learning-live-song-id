@@ -208,10 +208,12 @@ def write_db(proc_refs, proc_queries):
 def read_db():
     """Reads processed refs and queries from the database."""
     refs = []
-    for ref_path in sorted(os.listdir(REFS_DIR)):
+    for ref_name in sorted(os.listdir(REFS_DIR)):
+        ref_path = os.path.join(REFS_DIR, ref_name)
         refs.append(np.load(ref_path))
     queries = []
-    for query_path in sorted(os.listdir(QUERIES_DIR)):
+    for query_name in sorted(os.listdir(QUERIES_DIR)):
+        query_path = os.path.join(QUERIES_DIR, query_name)
         queries.append(np.load(query_path))
     return refs, queries
 

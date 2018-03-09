@@ -2,11 +2,16 @@ import numpy as np
 import scipy.spatial
 import time
 
+PITCH_SHIFTED_REFS = False
+
 def compare(queryFeatures, refFeatures):
     """
     Return a hamming distance between a short query feature
     matrix and a long reference feature matrix.
     """
+    assert len(refFeatures.shape) == 2, (refFeatures.shape, refFeatures)
+    assert len(queryFeatures.shape) == 2, (queryFeatures.shape, queryFeatures)
+
     # Initialization
     _, n = refFeatures.shape
     _, k = queryFeatures.shape
@@ -38,16 +43,20 @@ def search(query, refs):
     for refIdx, ref in enumerate(refs):
         distances = []
 
-        # Find the best score across multiple pitch-shifted versions
-        for pitch, refPitch in enumerate(ref):
-            distance, _ = compare(query, refPitch)
-            distances.append((pitch, distance))
+        if PITCH_SHIFTED_REFS:
+            # Find the best score across multiple pitch-shifted versions
+            for pitch, refPitch in enumerate(ref):
+                distance, _ = compare(query, refPitch)
+                distances.append((pitch, distance))
 
-        # Obtain the minimum distance from multiple versions
-        bestRefPitch, bestRefDistance = min(distances, key=lambda x: x[1])
+            # Obtain the minimum distance from multiple versions
+            bestRefPitch, bestRefDistance = min(distances, key=lambda x: x[1])
 
-        # Add score for each ref to the output array
-        output.append((refIdx, bestRefDistance, bestRefPitch))
+            # Add score for each ref to the output array
+            output.append((refIdx, bestRefDistance, bestRefPitch))
+        else:
+            distance = compare(query, ref)
+            output.append((refIdx, distance))
 
     # Sort an output array based on distance
     return sorted(output, key=lambda x: x[1])
