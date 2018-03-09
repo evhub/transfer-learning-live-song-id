@@ -205,14 +205,22 @@ def write_db(proc_refs, proc_queries):
         query_path = get_query_path(i)
         np.save(query_path, query)
 
-def read_db():
+def sorted_paths(paths):
+    """Sorts file paths by their number."""
+    return sorted(paths, key=lambda p: int(p.split(".", 1)[0]))
+
+def read_db(debug=False):
     """Reads processed refs and queries from the database."""
     refs = []
-    for ref_name in sorted(os.listdir(REFS_DIR)):
+    for ref_name in sorted_paths(os.listdir(REFS_DIR)):
+        if debug:
+            print("\tLoading ref %s..." % (ref_name,))
         ref_path = os.path.join(REFS_DIR, ref_name)
         refs.append(np.load(ref_path))
     queries = []
-    for query_name in sorted(os.listdir(QUERIES_DIR)):
+    for query_name in sorted_paths(os.listdir(QUERIES_DIR)):
+        if debug:
+            print("\tLoading query %s..." % (query_name,))
         query_path = os.path.join(QUERIES_DIR, query_name)
         queries.append(np.load(query_path))
     return refs, queries
@@ -245,7 +253,7 @@ if __name__ == "__main__":
         write_db(proc_refs, proc_queries)
     else:
         print("Using existing database...")
-        proc_refs, proc_queries = read_db()
-    print("Calculating MRR...")
-    MMR = calculateMRR(proc_refs, proc_queries, groundTruth)
+        proc_refs, proc_queries = read_db(debug=True)
+    print("Calculating MRR for %r refs and %r queries..." % (len(proc_refs), len(proc_queries)))
+    MMR = calculateMRR(proc_queries, proc_refs, groundTruth)
     print("MMR =", MMR)
