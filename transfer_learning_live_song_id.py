@@ -2,6 +2,7 @@
 import sys
 import os
 import math
+import time
 
 import numpy as np
 import kapre
@@ -164,8 +165,13 @@ def process(audio_arr, debug=False):
     num_samples = get_num_samples(audio_len)
     if debug:
         print("\tProcessing audio array of length %r (%r samples)..." % (audio_len, num_samples))
+        t0 = time.clock()
     models = build_models(audio_len)
-    return run_models(audio_arr, *models)
+    result = run_models(audio_arr, *models)
+    if debug:
+        tf = time.clock()
+        print("\t\t(took %rs)" % (tf - t0,))
+    return result
 
 def process_all(audio_arrs, debug=False):
     """Process all the given audio arrays."""
