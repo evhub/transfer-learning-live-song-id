@@ -19,10 +19,7 @@ from keras.layers import (
 )
 from keras.engine.topology import Input
 
-try:
-    import song_db
-except SyntaxError:
-    import song_db2 as song_db
+from song_db_universal.songs import get_data_for_artist
 
 sys.path.append(os.path.dirname(__file__))
 from search import calculateMRR
@@ -250,7 +247,7 @@ def remove_short_queries(queries, groundTruth):
 # Calculating MRR
 if __name__ == "__main__":
     print("Querying database...")
-    refs, queries, groundTruth = song_db.get_data_for_artist("taylorswift")
+    refs, queries, groundTruth = get_data_for_artist("taylorswift")
     queries, groundTruth = remove_short_queries(queries, groundTruth)
     if make_db():
         print("Processing refs...")
